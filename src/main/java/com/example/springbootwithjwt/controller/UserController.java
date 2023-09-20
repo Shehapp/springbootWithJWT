@@ -20,11 +20,13 @@ public class UserController {
 
     @GetMapping
     List<User> getAllUsers() {
+
         return userRepository.findAll();
     }
 
     @GetMapping("/{id}")
     User getOneUser(@PathVariable("id") Long id) {
+
         return userRepository
                 .findById(id)
                 .orElseThrow(() ->
