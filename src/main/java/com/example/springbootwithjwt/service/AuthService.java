@@ -53,6 +53,21 @@ public class AuthService {
                 .build();
     }
 
+
+    public void revoke(String username){
+        List<RefreshToken> refreshTokens =
+                tokenRepository.findByUserUsernameAndRevoked(
+                        username,
+                        false);
+        if(refreshTokens!=null){
+            refreshTokens.forEach(tt->
+                    tt.setRevoked(true)
+
+            );
+            tokenRepository.saveAll(refreshTokens);
+        }
+    }
+
     public ResponseTokens authenticate(RequestAuthenticate authenticate){
 
         // create Authentication object and pass it to AuthenticationManager
@@ -69,18 +84,8 @@ public class AuthService {
         }
 
         // revoke all tokens
-        System.out.println(authenticate.getUsername());
-        List<RefreshToken> refreshTokens =
-                tokenRepository.findByUserUsernameAndRevoked(
-                        authenticate.getUsername(),
-                        false);
-        if(refreshTokens!=null){
-            refreshTokens.forEach(tt->
-                    tt.setRevoked(true)
+        revoke(authenticate.getUsername());
 
-            );
-            tokenRepository.saveAll(refreshTokens);
-        }
         String token = UUID.randomUUID().toString();
         RefreshToken refreshToken=RefreshToken
                 .builder()
