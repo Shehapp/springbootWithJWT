@@ -28,10 +28,7 @@ public class UserServiceImpl implements UserDetailsService , UserService{
                 .build();
     }
 
-    @Override
-    public List<User> getUsers() {
-        return userRepository.findAll();
-    }
+
 
     @Override
     public Optional<User> getUser(String username) {

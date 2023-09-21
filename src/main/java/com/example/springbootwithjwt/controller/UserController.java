@@ -3,6 +3,7 @@ package com.example.springbootwithjwt.controller;
 import com.example.springbootwithjwt.entity.User;
 import com.example.springbootwithjwt.repository.UserRepository;
 import lombok.AllArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,8 +20,9 @@ public class UserController {
 
 
     @GetMapping
-    List<User> getAllUsers() {
-
+    List<User> getAllUsers(Authentication authentication) {
+        System.out.println(authentication.getName());
+        System.out.println(authentication.getAuthorities());
         return userRepository.findAll();
     }
 

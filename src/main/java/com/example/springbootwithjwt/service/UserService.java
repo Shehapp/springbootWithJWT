@@ -8,7 +8,6 @@ import java.util.Optional;
 
 
 public interface UserService {
-    List<User> getUsers();
     Optional<User> getUser(String username);
     void save(User user);
 }

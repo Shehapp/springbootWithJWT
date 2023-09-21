@@ -2,12 +2,18 @@ package com.example.springbootwithjwt.service;
 
 import com.example.springbootwithjwt.config.JwtService;
 import com.example.springbootwithjwt.entity.*;
+import com.example.springbootwithjwt.repository.RefreshTokenRepository;
+import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 @AllArgsConstructor
@@ -17,8 +23,9 @@ public class AuthService {
     final public PasswordEncoder passwordEncoder;
     final public JwtService jwtService;
     final public AuthenticationManager authenticationManager;
+    final public RefreshTokenRepository tokenRepository;
 
-    public ResponseToken register(RequestRegister register){
+    public ResponseTokens register(RequestRegister register){
 
         User user=new User();
         user.setUsername(register.getUsername());
@@ -27,16 +34,26 @@ public class AuthService {
         user.setRole(Role.USER);
         userService.save(user);
 
-        // create jwt token
-        return ResponseToken
+        String token = UUID.randomUUID().toString();
+        RefreshToken refreshToken=RefreshToken
                 .builder()
-                .token(jwtService
+                .token(token)
+                .revoked(false)
+                .expires(LocalDateTime.now().plusMinutes(2))
+                .user(user)
+                .build();
+        tokenRepository.save(refreshToken);
+        // create jwt token
+        return ResponseTokens
+                .builder()
+                .accessToken(jwtService
                         .buildToken(user.getUsername(),
                                     user.getRole().toString()))
+                .refreshToken(token)
                 .build();
     }
 
-    public ResponseToken authenticate(RequestAuthenticate authenticate){
+    public ResponseTokens authenticate(RequestAuthenticate authenticate){
 
         // create Authentication object and pass it to AuthenticationManager
         // to authenticate the user
@@ -51,16 +68,57 @@ public class AuthService {
             throw new RuntimeException("Invalid username/password supplied");
         }
 
+        // revoke all tokens
+        System.out.println(authenticate.getUsername());
+        List<RefreshToken> refreshTokens =
+                tokenRepository.findByUserUsernameAndRevoked(
+                        authenticate.getUsername(),
+                        false);
+        if(refreshTokens!=null){
+            refreshTokens.forEach(tt->
+                    tt.setRevoked(true)
+
+            );
+            tokenRepository.saveAll(refreshTokens);
+        }
+        String token = UUID.randomUUID().toString();
+        RefreshToken refreshToken=RefreshToken
+                .builder()
+                .token(token)
+                .revoked(false)
+                .expires(LocalDateTime.now().plusMonths(1))
+                .user(userService.getUser(authenticate.getUsername()).get())
+                .build();
+        tokenRepository.save(refreshToken);
+
         String role=authentication.getAuthorities().stream().findFirst().get().getAuthority();
         role.replace("[","");
         role.replace("]","");
         System.out.println(role);
-        return ResponseToken
+        return ResponseTokens
                 .builder()
-                .token(jwtService
+                .accessToken(jwtService
                         .buildToken(authenticate.getUsername(),
                                 role))
+                .refreshToken(token)
                 .build();
     }
 
+    public ResponseTokens authenticateByRefreshToken(String token) {
+
+        RefreshToken refreshToken = tokenRepository.findByToken(token)
+                .orElseThrow();
+        if(refreshToken.isRevoked() || refreshToken.getExpires().isBefore(LocalDateTime.now()))
+            throw new RuntimeException("Invalid Token");
+
+        User user=refreshToken.getUser();
+
+        return ResponseTokens
+                .builder()
+                .accessToken(jwtService
+                        .buildToken(user.getUsername(),
+                                user.getRole().toString()))
+                .refreshToken(token)
+                .build();
+    }
 }
